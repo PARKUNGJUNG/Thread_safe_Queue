@@ -1,4 +1,8 @@
 #pragma once
+#include <mutex>
+
+typedef int Key;
+typedef void* Value;
 
 typedef struct {
 	Key key;
@@ -8,7 +12,7 @@ typedef struct {
 typedef struct {
 	bool success;   // true: 성공, false: 실패
 	Item item;
-	// 필드추가가능
+	int error_code; // 필드 추가
 	} Reply;
 
 typedef struct node_t {

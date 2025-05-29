@@ -1,4 +1,5 @@
 #pragma once
+#include "qtype.h"
 
 // 큐 초기화, 해제
 Queue* init(void);
