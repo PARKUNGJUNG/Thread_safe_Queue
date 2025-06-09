@@ -6,12 +6,13 @@
 ///초기화/해제 함수
 //문제점: 메모리 할당 및 락(lock) 초기화가 이루어지지 않음.
 //해결 방향: Queue 구조체 할당 후, head/tail 초기화 및 뮤텍스 설정 필요.
+//Queue 구조체 할당 + head/tail 초기화 + 뮤텍스 생성
 Queue* init(void) {
 	return NULL; //큐 구조체 할당 및 초기화 필요
 }
 
 
-//큐 해제
+//모든 노드 메모리 해제 + 큐 구조체 삭제
 void release(Queue* queue) {
 	Node* current = queue->head;
 	while (current != NULL) {
@@ -26,7 +27,7 @@ void release(Queue* queue) {
 ///노드 관리 함수(메모리 관리)
 //문제점: 노드 생성/삭제/복사 기능이 구현되지 않음.
 //해결 방향: malloc/free를 이용한 메모리 관리 및 아이템 복사 로직 추가.
-///노드 생성, item으로 초기화
+///아이템을 저장할 노드 생성
 Node* nalloc(Item item) {
 	Node* new_node = (Node*)malloc(sizeof(Node));
 	new_node->item = item;
@@ -34,12 +35,12 @@ Node* nalloc(Item item) {
 	return new_node;
 }
 
-///노드 삭제
+///노드 메모리 해제
 void nfree(Node* node) {
 	return;
 }
 
-///노드 복사
+///노드 복제(깊은 복사)
 Node* nclone(Node* node) {
 	return NULL;
 }
@@ -50,7 +51,7 @@ Node* nclone(Node* node) {
 //해결 방향: 뮤텍스 락/언락을 이용한 동시성 제어 및 우선순위 큐 로직 구현
 ///삽입 시 정렬 유지
 Node* current = queue->head;
-while (current->next != NULL && current->next->item.key < item.key) {
+while (current->next && current->next->item.key < item.key) {
 	current = current->next;
 }
 new_node->next = current->next;
@@ -63,17 +64,19 @@ return target->item;
 
 ///핵심 큐 연산
 Reply enqueue(Queue* queue, Item item) {
-	std::lock_guard <std::mutex> guard(queue->lock);
 	//크리티컬 섹션 구현
 }
 
 Reply dequeue(Queue* queue) {
-	//미구현
 }
 
 Queue* range(Queue* queue, Key start, Key end) {
 	//미구현
 }
+
+
+
+
 
 ///메모장
 /// 주제: 멀티스레드 환경에서 안전하게 동작하는(스레드 세이프) 우선순위 큐(priority queue)를 직접 구현
