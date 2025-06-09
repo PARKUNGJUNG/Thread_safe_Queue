@@ -8,18 +8,23 @@
 //해결 방향: Queue 구조체 할당 후, head/tail 초기화 및 뮤텍스 설정 필요.
 //Queue 구조체 할당 + head/tail 초기화 + 뮤텍스 생성
 Queue* init(void) {
-	return NULL; //큐 구조체 할당 및 초기화 필요
+	Queue* queue = (Queue*)malloc(sizeof(Queue));
+	queue->head = nalloc({ 0, NULL }); //더미 노드
+	queue->tail = queue->head;
+	new (&queue->lock) std::mutex(); //뮤텍스 초기화
+	return queue;
 }
 
 
 //모든 노드 메모리 해제 + 큐 구조체 삭제
 void release(Queue* queue) {
 	Node* current = queue->head;
-	while (current != NULL) {
+	while (current) {
 		Node* temp = current;
 		current = current->next;
-		free(temp);
+		nfree(temp);
 	}
+	queue->lock.~mutex(); //뮤텍스 파괴
 	free(queue);
 }
 
@@ -64,7 +69,6 @@ return target->item;
 
 ///핵심 큐 연산
 Reply enqueue(Queue* queue, Item item) {
-	//크리티컬 섹션 구현
 }
 
 Reply dequeue(Queue* queue) {
