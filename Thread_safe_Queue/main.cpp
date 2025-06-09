@@ -5,10 +5,10 @@
 #include <time.h>
 
 int main(void) {
-	srand((unsigned int)time(NULL));
+	srand((unsigned int)time(NULL)); //데이터의 무작위 srand.
 
 	//워크로드 생성(GETRANGE는 패스)
-	Request requests[REQUEST_PER_CLINET]; //클라이언트 스레드가 수행할 작업을 저장.
+	Request requests[REQUEST_PER_CLINET]; //클라이언트 스레드가 수행할 작업을 저장. //requests 배열: 클라이언트 스레드가 수행할 작업(SET/GET)을 저장.
 	//워크로드 분배
 	for (int i = 0; i < REQUEST_PER_CLINET / 2; i++) {
 		requests[i].op = SET; //전체 요청의 절반을 차지

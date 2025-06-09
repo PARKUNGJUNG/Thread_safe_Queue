@@ -7,6 +7,7 @@ typedef void* Value;
 typedef struct { //Item 구조체: 우선순위 항목
 	Key key;
 	Value value;
+	int value_size; //byte
 } Item;
 
 typedef struct { //Reply 구조체: 연산 결과
