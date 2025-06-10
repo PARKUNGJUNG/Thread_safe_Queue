@@ -24,7 +24,7 @@ void release(Queue* queue) {
 	while (current) {
 		Node* temp = current;
 		current = current->next;
-		nfree(temp);
+		delete(temp);
 	}
 	queue->lock.~mutex(); //뮤텍스 파괴
 	free(queue); //해제
@@ -37,14 +37,21 @@ void release(Queue* queue) {
 ///아이템을 저장할 노드 생성
 Node* nalloc(Item item) {
 	Node* new_node = new Node;
-	new_node->item = item;
+	new_node->item.key = item.key;
+
+	//value_size 기반 메모리 할당 및 복사
+	new_node->item.value_size = item.value_size;
+	new_node->item.value = malloc(item.value_size); //동적 할당
+	memcpy(new_node->item.value, item.value, item.value_size); //깊은 복사
+
 	new_node->next = nullptr;
 	return new_node;
 }
 
 ///노드 메모리 해제
 void nfree(Node* node) {
-	delete node; 
+	free(node->item.value); //추가된 메모리 해제
+	delete node;
 }
 
 ///노드 복제(깊은 복사)
@@ -64,6 +71,7 @@ Node* nclone(Node* node) {
 ///핵심 큐 연산 (스레드 세이프)
 Reply enqueue(Queue* queue, Item item) {
 	std::lock_guard<std::mutex> lock(queue->lock); //락 획득
+
 	//새 노드 생성
 	Node* new_node = nalloc(item);
 
@@ -82,8 +90,9 @@ Reply enqueue(Queue* queue, Item item) {
 	}
 
 	//노드 연결
-	new_node->next = prev->next;
-	prev->next = new_node;
+	new_node->next = current->next;
+	current->next = new_node;
+
 	//tail 업데이트
 	if (!new_node->next) queue->tail = new_node;
 
@@ -95,12 +104,12 @@ Reply dequeue(Queue* queue) {
 
 	//큐가 비었는지 확인
 	if (queue->head->next == nullptr) {
-		return{ false, {0, nullptr} };
+		return{ false, {0, nullptr}, 1 };
 	}
 
 	//최우선순위 노드 추출 (head->next)
 	Node* target = queue->head->next;
-	Reply reply = { true, target->item };
+	Reply reply = { true, target->item, 0 };
 
 	//노드 제거
 	queue->head->next = target->next;
