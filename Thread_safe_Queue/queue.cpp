@@ -67,11 +67,41 @@ Node* target = queue->head->next; //head는 더미 노드 가정
 queue->head->next = target->next;
 return target->item;
 
-///핵심 큐 연산
+///핵심 큐 연산 (스레드 세이프)
 Reply enqueue(Queue* queue, Item item) {
+	std::lock_guard<std::mutex> lock(queue->lock);
+	//새 노드 생성
+	Node* new_node = nalloc(item);
+
+	//우선순위 탐색: (Key 오름차순)
+	Node* prev = queue->head;
+	while (prev->next && prev->next->item.key < item.key) {
+		prev = prev->next;
+	}
+
+	//노드 연결
+	new_node->next = prev->next;
+	prev->next = new_node;
+	//tail 업데이트
+	if (!new_node->next) queue->tail = new_node;
+
+	return { true,item };
 }
 
 Reply dequeue(Queue* queue) {
+	std::lock_guard<std::mutex> lock(queue->lock);
+	if (queue->head->next == nullptr) {
+		return{ false, {0, NULL} }; //큐 빔
+	}
+
+	Node* target = queue->head->next;
+	Reply reply = { true, target->item };
+	//노드 제거
+	queue->head->next = target->next;
+	if (!target->next) queue->tail = queue->head;
+
+	nfree(target);
+	return reply;
 }
 
 Queue* range(Queue* queue, Key start, Key end) {
