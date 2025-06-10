@@ -1,6 +1,8 @@
 #include <iostream>
 #include <mutex>
+#include "qtype.h"
 #include "queue.h"
+
 
 
 ///초기화/해제 함수
@@ -8,8 +10,8 @@
 //해결 방향: Queue 구조체 할당 후, head/tail 초기화 및 뮤텍스 설정 필요.
 //Queue 구조체 할당 + head/tail 초기화 + 뮤텍스 생성
 Queue* init(void) {
-	Queue* queue = (Queue*)malloc(sizeof(Queue));
-	queue->head = nalloc({ 0, NULL }); //더미 노드
+	Queue* queue = new Queue;
+	queue->head = nalloc({ 0, nullptr }); //더미 노드
 	queue->tail = queue->head;
 	new (&queue->lock) std::mutex(); //뮤텍스 초기화
 	return queue;
@@ -25,7 +27,7 @@ void release(Queue* queue) {
 		nfree(temp);
 	}
 	queue->lock.~mutex(); //뮤텍스 파괴
-	free(queue);
+	free(queue); //해제
 }
 
 
@@ -34,44 +36,44 @@ void release(Queue* queue) {
 //해결 방향: malloc/free를 이용한 메모리 관리 및 아이템 복사 로직 추가.
 ///아이템을 저장할 노드 생성
 Node* nalloc(Item item) {
-	Node* new_node = (Node*)malloc(sizeof(Node));
+	Node* new_node = new Node;
 	new_node->item = item;
-	new_node->next = NULL;
+	new_node->next = nullptr;
 	return new_node;
 }
 
 ///노드 메모리 해제
 void nfree(Node* node) {
-	return;
+	delete node; 
 }
 
 ///노드 복제(깊은 복사)
 Node* nclone(Node* node) {
-	return NULL;
+	if (!node) return nullptr;
+	Node* new_node = nalloc(node->item);
+	new_node->next = nclone(node->next);
+	return new_node;
 }
 
 
 ///우선순위 큐 로직
 //문제점: 스레드 세이프티를 보장하는 로직 전혀 없음 - 이걸 만들어야되는구나
 //해결 방향: 뮤텍스 락/언락을 이용한 동시성 제어 및 우선순위 큐 로직 구현
-///삽입 시 정렬 유지
-Node* current = queue->head;
-while (current->next && current->next->item.key < item.key) {
-	current = current->next;
-}
-new_node->next = current->next;
-current->next = new_node;
 
-///우선순위 추출
-Node* target = queue->head->next; //head는 더미 노드 가정
-queue->head->next = target->next;
-return target->item;
 
 ///핵심 큐 연산 (스레드 세이프)
 Reply enqueue(Queue* queue, Item item) {
-	std::lock_guard<std::mutex> lock(queue->lock);
+	std::lock_guard<std::mutex> lock(queue->lock); //락 획득
 	//새 노드 생성
 	Node* new_node = nalloc(item);
+
+	//우선순위 탐색 및 삽입 위치 결정
+	Node* current = queue->head;
+	while (current->next && current->next->item.key < item.key) {
+		current = current->next;
+	}
+	new_node->next = current->next;
+	current->next = new_node;
 
 	//우선순위 탐색: (Key 오름차순)
 	Node* prev = queue->head;
@@ -90,17 +92,25 @@ Reply enqueue(Queue* queue, Item item) {
 
 Reply dequeue(Queue* queue) {
 	std::lock_guard<std::mutex> lock(queue->lock);
+
+	//큐가 비었는지 확인
 	if (queue->head->next == nullptr) {
-		return{ false, {0, NULL} }; //큐 빔
+		return{ false, {0, nullptr} };
 	}
 
+	//최우선순위 노드 추출 (head->next)
 	Node* target = queue->head->next;
 	Reply reply = { true, target->item };
+
 	//노드 제거
 	queue->head->next = target->next;
+
+	//tail 업데이트 (제거 후 큐가 빈 경우)
 	if (!target->next) queue->tail = queue->head;
 
+	//메모리 해제
 	nfree(target);
+
 	return reply;
 }
 
