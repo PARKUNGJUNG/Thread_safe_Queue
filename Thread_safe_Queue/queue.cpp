@@ -155,7 +155,29 @@ Reply dequeue(Queue* queue) {
 }
 
 Queue* range(Queue* queue, Key start, Key end) {
-	//미구현
+	std::lock_guard<std::mutex> lock(queue->lock);
+	Queue* result = init();
+	
+	Node* current = queue->head->next;
+	while (current != nullptr) {
+		if (current->item.key >= start && current->item.key <= end) {
+			Item copied = {
+				current->item.key,
+				nullptr,
+				current->item.value_size
+			};
+			if (current->item.value_size > 0 && current->item.value != nullptr) {
+				copied.value = malloc(current->item.value_size);
+				if (copied.value != nullptr) {
+					memcpy(copied.value, current->item.value, current->item.value_size);
+				}
+			}
+			enqueue(result, copied);
+			free(copied.value); //복사본 해제
+		}
+		current = current->next;
+	}
+	return result;
 }
 
 

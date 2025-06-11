@@ -29,7 +29,7 @@ typedef struct node_t { //Node 구조체: 연결 리스트 노드
 
 
 //Queue 구조체 및 명시적 초기화
-typedef struct {
+typedef struct Queue {
 	Node* head = nullptr;
 	Node* tail = nullptr;
 	std::mutex lock;
