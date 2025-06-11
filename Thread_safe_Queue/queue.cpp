@@ -83,30 +83,41 @@ Reply enqueue(Queue* queue, Item item) {
 	std::lock_guard<std::mutex> lock(queue->lock); //락 획득
 
 	//새 노드 생성
-	Node* new_node = nalloc(item);
-
-	//우선순위 탐색 및 삽입 위치 결정
-	Node* current = queue->head;
-	while (current->next && current->next->item.key < item.key) {
-		current = current->next;
-	}
-	new_node->next = current->next;
-	current->next = new_node;
-
-	//우선순위 탐색: (Key 오름차순)
 	Node* prev = queue->head;
-	while (prev->next && prev->next->item.key < item.key) {
+	while (prev->next != nullptr) {
+		if (prev->next->item.key == item.key) {
+			// 기존 값 교체
+			if (prev->next->item.value != nullptr) {
+				free(prev->next->item.value);
+			}
+			prev->next->item.value_size = item.value_size;
+
+			if (item.value != nullptr && item.value_size > 0) {
+				prev->next->item.value = malloc(item.value_size);
+				if (prev->next->item.value != nullptr) {
+					memcpy(prev->next->item.value, item.value, item.value_size);
+				}
+			}
+			else {
+				prev->next->item.value = nullptr;
+			}
+			return { true, item, 0 };
+		}
+		if (prev->next->item.key > item.key) break;
 		prev = prev->next;
 	}
 
-	//노드 연결
-	new_node->next = current->next;
-	current->next = new_node;
+	//새 노드 삽입
+	Node* new_node = nalloc(item);
+	new_node->next = prev->next;
+	prev->next = new_node;
 
-	//tail 업데이트
-	if (!new_node->next) queue->tail = new_node;
+	if (new_node->next == nullptr) {
+		queue->tail = new_node;
+	}
+	queue->count++;
 
-	return { true,item };
+	return { true, item, 0 };
 }
 
 Reply dequeue(Queue* queue) {
@@ -114,12 +125,22 @@ Reply dequeue(Queue* queue) {
 
 	//큐가 비었는지 확인
 	if (queue->head->next == nullptr) {
-		return{ false, {0, nullptr}, 1 };
+		//모든 필드 명시적 초기화
+		Reply reply;
+		reply.success = false;
+		reply.item.key = 0;
+		reply.item.value = nullptr;
+		reply.item.value_size = 0;
+		reply.error_code = 1;
+		return reply;
 	}
 
 	//최우선순위 노드 추출 (head->next)
 	Node* target = queue->head->next;
-	Reply reply = { true, target->item, 0 };
+	Reply reply;
+	reply.success = true;
+	reply.item = target->item; // target->item은 이미 초기화됨
+	reply.error_code = 0;
 
 	//노드 제거
 	queue->head->next = target->next;
