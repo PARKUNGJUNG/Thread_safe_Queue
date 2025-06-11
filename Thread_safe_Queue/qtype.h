@@ -25,15 +25,14 @@ typedef struct {
 typedef struct node_t { //Node 구조체: 연결 리스트 노드
 	Item item;
 	struct node_t* next;
-	struct node_t* prev; //역방향 탐색 지원 //초기는 단방향 연결만 지원했음, 우선순위 검색 비효율적.
-	int priorty; //키 캐싱(성능 향상)
 } Node;
 
 
-//Queue 구조체: 큐 메타데이터
+//Queue 구조체 및 명시적 초기화
 typedef struct {
-	Node* head, * tail;
-	std::mutex lock; // 뮤텍스 추가, 스레드 안전을 위한 뮤텍스
-	size_t count; //현재 아이템 수(성능 모니터링)
+	Node* head = nullptr;
+	Node* tail = nullptr;
+	std::mutex lock;
+	size_t count = 0;
 } Queue;
 //더미 헤드 노드 추가: head ->  next를 첫 노드로 사용해 경합 조건 감소

@@ -1,8 +1,8 @@
 #include <iostream>
 #include <mutex>
+#include <cstring>
 #include "qtype.h"
 #include "queue.h"
-
 
 
 ///초기화/해제 함수
@@ -11,9 +11,10 @@
 //Queue 구조체 할당 + head/tail 초기화 + 뮤텍스 생성
 Queue* init(void) {
 	Queue* queue = new Queue;
-	queue->head = nalloc({ 0, nullptr }); //더미 노드
+	queue->head = new Node{ {0, nullptr, 0}, nullptr }; //더미 헤드
 	queue->tail = queue->head;
 	new (&queue->lock) std::mutex(); //뮤텍스 초기화
+	queue->count = 0; //명시적 초기화
 	return queue;
 }
 
@@ -24,10 +25,10 @@ void release(Queue* queue) {
 	while (current) {
 		Node* temp = current;
 		current = current->next;
-		delete(temp);
+		nfree(temp);
 	}
 	queue->lock.~mutex(); //뮤텍스 파괴
-	free(queue); //해제
+	delete(queue); //해제
 }
 
 
@@ -38,11 +39,18 @@ void release(Queue* queue) {
 Node* nalloc(Item item) {
 	Node* new_node = new Node;
 	new_node->item.key = item.key;
-
-	//value_size 기반 메모리 할당 및 복사
 	new_node->item.value_size = item.value_size;
-	new_node->item.value = malloc(item.value_size); //동적 할당
-	memcpy(new_node->item.value, item.value, item.value_size); //깊은 복사
+
+	//Null 및 크기 체크
+	if (item.value != nullptr && item.value_size > 0) {
+		new_node->item.value = malloc(item.value_size);
+		if (new_node->item.value != nullptr) {
+			memcpy(new_node->item.value, item.value, item.value_size);
+		}
+	}
+	else {
+		new_node->item.value = nullptr;
+	}
 
 	new_node->next = nullptr;
 	return new_node;
@@ -50,15 +58,19 @@ Node* nalloc(Item item) {
 
 ///노드 메모리 해제
 void nfree(Node* node) {
-	free(node->item.value); //추가된 메모리 해제
+	if (node != nullptr && node->item.value != nullptr) {
+		free(node->item.value);
+	}
 	delete node;
 }
 
 ///노드 복제(깊은 복사)
 Node* nclone(Node* node) {
-	if (!node) return nullptr;
+	if (node == nullptr) return nullptr;
 	Node* new_node = nalloc(node->item);
-	new_node->next = nclone(node->next);
+	if (new_node != nullptr) {
+		new_node->next = nclone(node->next);
+	}
 	return new_node;
 }
 
@@ -66,8 +78,6 @@ Node* nclone(Node* node) {
 ///우선순위 큐 로직
 //문제점: 스레드 세이프티를 보장하는 로직 전혀 없음 - 이걸 만들어야되는구나
 //해결 방향: 뮤텍스 락/언락을 이용한 동시성 제어 및 우선순위 큐 로직 구현
-
-
 ///핵심 큐 연산 (스레드 세이프)
 Reply enqueue(Queue* queue, Item item) {
 	std::lock_guard<std::mutex> lock(queue->lock); //락 획득
