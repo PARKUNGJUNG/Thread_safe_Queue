@@ -25,7 +25,10 @@ void release(Queue* queue) {
 	while (current) {
 		Node* temp = current;
 		current = current->next;
-		nfree(temp);
+		if (temp->item.value) {
+			free(temp->item.value);
+		}
+		delete temp;
 	}
 	queue->lock.~mutex(); //뮤텍스 파괴
 	delete(queue); //해제
@@ -58,9 +61,6 @@ Node* nalloc(Item item) {
 
 ///노드 메모리 해제
 void nfree(Node* node) {
-	if (node != nullptr && node->item.value != nullptr) {
-		free(node->item.value);
-	}
 	delete node;
 }
 
@@ -125,22 +125,12 @@ Reply dequeue(Queue* queue) {
 
 	//큐가 비었는지 확인
 	if (queue->head->next == nullptr) {
-		//모든 필드 명시적 초기화
-		Reply reply;
-		reply.success = false;
-		reply.item.key = 0;
-		reply.item.value = nullptr;
-		reply.item.value_size = 0;
-		reply.error_code = 1;
-		return reply;
+		return { false, {0, nullptr, 0}, 1 };
 	}
 
 	//최우선순위 노드 추출 (head->next)
 	Node* target = queue->head->next;
-	Reply reply;
-	reply.success = true;
-	reply.item = target->item; // target->item은 이미 초기화됨
-	reply.error_code = 0;
+	Reply reply = { true, target->item, 0 };
 
 	//노드 제거
 	queue->head->next = target->next;
@@ -149,8 +139,7 @@ Reply dequeue(Queue* queue) {
 	if (!target->next) queue->tail = queue->head;
 
 	//메모리 해제
-	nfree(target);
-
+	delete(target);
 	return reply;
 }
 
