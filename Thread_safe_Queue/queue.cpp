@@ -144,27 +144,35 @@ Reply dequeue(Queue* queue) {
 }
 
 Queue* range(Queue* queue, Key start, Key end) {
-	std::lock_guard<std::mutex> lock(queue->lock);
 	Queue* result = init();
-	
-	Node* current = queue->head->next;
-	while (current != nullptr) {
-		if (current->item.key >= start && current->item.key <= end) {
-			Item copied = {
-				current->item.key,
-				nullptr,
-				current->item.value_size
-			};
-			if (current->item.value_size > 0 && current->item.value != nullptr) {
-				copied.value = malloc(current->item.value_size);
-				if (copied.value != nullptr) {
+	{
+		std::lock_guard<std::mutex> lock(queue->lock);
+		Node* current = queue->head->next;
+		while (current != nullptr) {
+			if (current->item.key >= start && current->item.key <= end) {
+				Item copied = {
+					current->item.key,
+					nullptr,
+					current->item.value_size
+				};
+				if (current->item.value_size > 0 && current->item.value != nullptr) {
+					copied.value = malloc(current->item.value_size);
 					memcpy(copied.value, current->item.value, current->item.value_size);
 				}
+				//결과 큐 작업은 별도 락 사용
+				std::lock_guard<std::mutex> res_lock(result->lock);
+				Node* new_node = new Node{ copied, nullptr };
+				if (result->tail == nullptr) {
+					result->head = result->tail = new_node;
+				}
+				else {
+					result->tail->next = new_node;
+					result->tail = new_node;
+				}
+				if (copied.value) free(copied.value);
 			}
-			enqueue(result, copied);
-			free(copied.value); //복사본 해제
+			current = current->next;
 		}
-		current = current->next;
 	}
 	return result;
 }
